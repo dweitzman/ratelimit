@@ -140,6 +140,7 @@ func NewServer(name string, store stats.Store, localCache *freecache.Cache, opts
 
 func newServer(name string, store stats.Store, localCache *freecache.Cache, opts ...settings.Option) *server {
 	s := settings.NewSettings()
+	tags := s.StatsdTags
 
 	for _, opt := range opts {
 		opt(&s)
@@ -155,10 +156,10 @@ func newServer(name string, store stats.Store, localCache *freecache.Cache, opts
 
 	// setup stats
 	ret.store = store
-	ret.scope = ret.store.Scope(name)
-	ret.store.AddStatGenerator(stats.NewRuntimeStats(ret.scope.Scope("go")))
+	ret.scope = ret.store.ScopeWithTags(name, tags)
+	ret.store.AddStatGenerator(stats.NewRuntimeStats(ret.scope.ScopeWithTags("go", tags)))
 	if localCache != nil {
-		ret.store.AddStatGenerator(limiter.NewLocalCacheStats(localCache, ret.scope.Scope("localcache")))
+		ret.store.AddStatGenerator(limiter.NewLocalCacheStats(localCache, ret.scope.ScopeWithTags("localcache", tags)))
 	}
 
 	// setup runtime
@@ -172,7 +173,7 @@ func newServer(name string, store stats.Store, localCache *freecache.Cache, opts
 	ret.runtime = loader.New(
 		s.RuntimePath,
 		s.RuntimeSubdirectory,
-		ret.store.Scope("runtime"),
+		ret.store.ScopeWithTags("runtime", tags),
 		&loader.SymlinkRefresher{RuntimePath: s.RuntimePath},
 		loaderOpts...)
 
